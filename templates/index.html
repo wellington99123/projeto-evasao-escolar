@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>Sistema de Alerta Escolar</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; height: 100vh; }
+.sidebar { width: 200px; background: #1F4E79; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sidebar h2 { color: #ffffff99; font-size: 11px; margin-bottom: 12px; letter-spacing: 1px; }
+.menu-item { color: #ffffffcc; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.menu-item:hover, .menu-item.active { background: #ffffff22; color: white; }
+.main { flex: 1; padding: 24px; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; }
+h1 { font-size: 20px; color: #1F4E79; margin-bottom: 20px; }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.card { background: white; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px #0001; }
+.card-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+.card-value { font-size: 24px; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px #0001; }
+th { background: #2E75B6; color: white; padding: 11px 14px; text-align: left; font-size: 13px; }
+td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+.ALTO { background: #FFC7CE; }
+.MODERADO { background: #FFEB9C; }
+.BAIXO { background: #C6EFCE; }
+.badge { padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; }
+.badge-alto { background: #FFC7CE; color: #9C0006; }
+.badge-mod { background: #FFEB9C; color: #9C5700; }
+.badge-baixo { background: #C6EFCE; color: #276221; }
+button { background: #2E75B6; color: white; padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
+button:hover { background: #1F4E79; }
+input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-bottom: 10px; font-family: Arial; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ocorr-item { background: white; border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; box-shadow: 0 1px 3px #0001; display: flex; justify-content: space-between; align-items: center; }
+.ocorr-info { font-size: 13px; }
+.ocorr-data { font-size: 11px; color: #888; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>SISTEMA ALERTA</h2>
+  <div class="menu-item active" onclick="showPage('dashboard', this)">📊 Dashboard</div>
+  <div class="menu-item" onclick="showPage('ocorrencias', this)">⚠️ Ocorrências</div>
+  <div class="menu-item" onclick="showPage('frequencia', this)">📋 Frequência</div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="page active">
+    <h1>Visão geral</h1>
+    <div class="cards">
+      <div class="card"><div class="card-label">Total de alunos</div><div class="card-value">{% if alunos %}{{ alunos|length }}{% else %}—{% endif %}</div></div>
+      <div class="card"><div class="card-label">Risco alto</div><div class="card-value" style="color:#C00000;">{% if alunos %}{{ alunos|selectattr('nivel','equalto','ALTO')|list|length }}{% else %}—{% endif %}</div></div>
+      <div class="card"><div class="card-label">Risco moderado</div><div class="card-value" style="color:#9C5700;">{% if alunos %}{{ alunos|selectattr('nivel','equalto','MODERADO')|list|length }}{% else %}—{% endif %}</div></div>
+      <div class="card"><div class="card-label">Risco baixo</div><div class="card-value" style="color:#276221;">{% if alunos %}{{ alunos|selectattr('nivel','equalto','BAIXO')|list|length }}{% else %}—{% endif %}</div></div>
+    </div>
+    <form action="/calcular" method="POST" style="display:inline;">
+      <button type="submit">Analisar alunos da planilha</button>
+    </form>
+    {% if alunos %}
+    <a href="/exportar-pdf" style="display:inline-block; margin-left:10px; background:#C00000; color:white; padding:9px 18px; border-radius:8px; text-decoration:none; font-size:14px;">📄 Exportar PDF</a>
+    {% endif %}
+    {% if alunos %}
+    <br><br>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:20px;">
+      <div class="card" style="padding:20px;">
+        <p style="font-size:14px; font-weight:600; margin-bottom:14px;">Distribuição de risco</p>
+        <canvas id="graficoPizza" width="200" height="200"></canvas>
+      </div>
+      <div class="card" style="padding:20px;">
+        <p style="font-size:14px; font-weight:600; margin-bottom:14px;">Top 10 — maior risco</p>
+        <canvas id="graficoBarras" height="200"></canvas>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
+      <label style="font-size:13px; color:#555;">Filtrar por turma:</label>
+      <select id="filtroTurma" onchange="filtrarTurma()" style="width:auto; margin-bottom:0; padding:6px 12px;">
+        <option value="">Todas as turmas</option>
+        {% for turma in alunos|map(attribute='turma')|unique|sort %}
+        <option value="{{ turma }}">{{ turma }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <table>
+      <tr><th>Nome</th><th>Turma</th><th>Faltas</th><th>Média</th><th>Risco</th><th>Nível</th></tr>
+      {% for aluno in alunos %}
+      <tr class="{{ aluno.nivel }}">
+        <td><a href="/aluno/{{ aluno.nome }}" style="color:#1F4E79; text-decoration:none; font-weight:500;">{{ aluno.nome }}</a></td>
+        <td>{{ aluno.turma }}</td>
+        <td>{{ aluno.faltas_bimestre }}</td>
+        <td>{{ aluno.media_notas }}</td>
+        <td>{{ aluno.risco }}%</td>
+        <td><span class="badge badge-{{ aluno.nivel|lower }}">{{ aluno.nivel }}</span></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- OCORRÊNCIAS -->
+  <div id="ocorrencias" class="page">
+    <h1>Ocorrências</h1>
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+      <p style="font-size:14px; font-weight:600; margin-bottom:14px;">Registrar nova ocorrência</p>
+      <form action="/registrar" method="POST">
+        <div class="form-grid">
+          <div>
+            <label style="font-size:12px; color:#888;">Nome do aluno</label>
+            <input type="text" name="nome" placeholder="Ex: Lucas Silva" required>
+          </div>
+          <div>
+            <label style="font-size:12px; color:#888;">Tipo</label>
+            <select name="tipo">
+              <option>Comportamento</option>
+              <option>Conflito</option>
+              <option>Falta injustificada</option>
+              <option>Outro</option>
+            </select>
+          </div>
+        </div>
+        <label style="font-size:12px; color:#888;">Descrição</label>
+        <textarea name="descricao" rows="3" placeholder="Descreva o ocorrido..."></textarea>
+        <button type="submit">Registrar ocorrência</button>
+      </form>
+    </div>
+    <h1>Histórico</h1>
+    {% if ocorrencias %}
+      {% for o in ocorrencias|reverse %}
+      <div class="ocorr-item">
+        <div class="ocorr-info">
+          <strong>{{ o.nome }}</strong> — {{ o.tipo }}<br>
+          <span style="color:#555;">{{ o.descricao }}</span>
+          <div class="ocorr-data">{{ o.data }}</div>
+        </div>
+        <span class="badge badge-alto">Registrado</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="color:#888; font-size:13px;">Nenhuma ocorrência registrada ainda.</p>
+    {% endif %}
+  </div>
+
+  <!-- IMPORTAR -->
+  <div id="frequencia" class="page">
+    <h1>Importar planilha</h1>
+    <div class="card" style="padding:24px;">
+      <p style="font-size:14px; font-weight:600; margin-bottom:6px;">Enviar nova planilha de alunos</p>
+      <p style="font-size:13px;color:#888;margin-bottom:16px;">Formatos aceitos: .xlsx — a IA recalcula o risco automaticamente após importar.</p>
+      <form action="/importar" method="POST" enctype="multipart/form-data">
+        <input type="file" name="planilha" accept=".xlsx" style="margin-bottom:12px;">
+        <br>
+        <button type="submit">Importar e analisar</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+
+function filtrarTurma() {
+  const turma = document.getElementById('filtroTurma').value;
+  const linhas = document.querySelectorAll('table tr');
+  linhas.forEach((linha, i) => {
+    if (i === 0) return;
+    const celulaTurma = linha.querySelectorAll('td')[1];
+    if (!celulaTurma) return;
+    if (turma === '' || celulaTurma.textContent === turma) {
+      linha.style.display = '';
+    } else {
+      linha.style.display = 'none';
+    }
+  });
+}
+
+{% if alunos %}
+const alunos = {{ alunos | tojson }};
+const alto = alunos.filter(a => a.nivel === 'ALTO').length;
+const moderado = alunos.filter(a => a.nivel === 'MODERADO').length;
+const baixo = alunos.filter(a => a.nivel === 'BAIXO').length;
+
+new Chart(document.getElementById('graficoPizza'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Alto', 'Moderado', 'Baixo'],
+    datasets: [{ data: [alto, moderado, baixo], backgroundColor: ['#FFC7CE', '#FFEB9C', '#C6EFCE'], borderColor: ['#C00000', '#9C5700', '#276221'], borderWidth: 2 }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+const top10 = [...alunos].sort((a, b) => b.risco - a.risco).slice(0, 10);
+
+new Chart(document.getElementById('graficoBarras'), {
+  type: 'bar',
+  data: {
+    labels: top10.map(a => a.nome),
+    datasets: [{ label: 'Risco (%)', data: top10.map(a => a.risco), backgroundColor: top10.map(a => a.nivel === 'ALTO' ? '#FFC7CE' : a.nivel === 'MODERADO' ? '#FFEB9C' : '#C6EFCE'), borderColor: top10.map(a => a.nivel === 'ALTO' ? '#C00000' : a.nivel === 'MODERADO' ? '#9C5700' : '#276221'), borderWidth: 2 }]
+  },
+  options: { scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: false } } }
+});
+{% endif %}
+</script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Perfil — {{ aluno.nome }}</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; height: 100vh; }
+.sidebar { width: 200px; background: #1F4E79; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sidebar h2 { color: #ffffff99; font-size: 11px; margin-bottom: 12px; letter-spacing: 1px; }
+.menu-item { color: #ffffffcc; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.menu-item:hover { background: #ffffff22; color: white; }
+.main { flex: 1; padding: 24px; overflow-y: auto; }
+h1 { font-size: 20px; color: #1F4E79; margin-bottom: 6px; }
+.card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px #0001; margin-bottom: 16px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.label { font-size: 12px; color: #888; margin-bottom: 3px; }
+.value { font-size: 18px; font-weight: 600; }
+.bar-bg { height: 10px; background: #f0f0f0; border-radius: 5px; margin-top: 6px; overflow: hidden; }
+.bar { height: 10px; border-radius: 5px; }
+.fator { margin-bottom: 14px; }
+.fator-nome { font-size: 13px; color: #444; display: flex; justify-content: space-between; margin-bottom: 4px; }
+.badge { display: inline-block; padding: 4px 14px; border-radius: 99px; font-size: 13px; font-weight: 500; }
+.ALTO { background: #FFC7CE; color: #9C0006; }
+.MODERADO { background: #FFEB9C; color: #9C5700; }
+.BAIXO { background: #C6EFCE; color: #276221; }
+.rec { background: #EEF4FF; border-left: 4px solid #2E75B6; padding: 14px 16px; border-radius: 0 8px 8px 0; font-size: 13px; color: #333; line-height: 1.6; }
+a.btn { display: inline-block; margin-bottom: 20px; background: #2E75B6; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; }
+a.btn:hover { background: #1F4E79; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>SISTEMA ALERTA</h2>
+  <a class="menu-item" href="/">📊 Dashboard</a>
+  <a class="menu-item" href="/">⚠️ Ocorrências</a>
+  <a class="menu-item" href="/">📋 Frequência</a>
+</div>
+
+<div class="main">
+  <a class="btn" href="javascript:history.back()">← Voltar</a>
+  <h1>{{ aluno.nome }}</h1>
+  <p style="color:#888; font-size:13px; margin-bottom:20px;">Turma {{ aluno.turma }} — Perfil de risco detalhado</p>
+
+  <div class="grid">
+    <div class="card">
+      <p class="label">Risco de evasão</p>
+      <p class="value" style="font-size:36px; color:{% if aluno.nivel == 'ALTO' %}#C00000{% elif aluno.nivel == 'MODERADO' %}#9C5700{% else %}#276221{% endif %};">{{ aluno.risco }}%</p>
+      <span class="badge {{ aluno.nivel }}">{{ aluno.nivel }}</span>
+    </div>
+    <div class="card">
+      <p class="label" style="margin-bottom:12px;">Dados do aluno</p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div><p class="label">Faltas</p><p class="value">{{ aluno.faltas_bimestre }}</p></div>
+        <div><p class="label">Média</p><p class="value">{{ aluno.media_notas }}</p></div>
+        <div><p class="label">Renda (sal. mín.)</p><p class="value">{{ aluno.renda_salarios }}</p></div>
+        <div><p class="label">Reprovações</p><p class="value">{{ aluno.reprovacoes }}</p></div>
+        <div><p class="label">Trabalha</p><p class="value">{{ aluno.trabalha }}</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p style="font-size:14px; font-weight:600; margin-bottom:16px;">Fatores de risco</p>
+    <div class="fator">
+      <div class="fator-nome"><span>Faltas excessivas (peso 35%)</span><span>{{ [aluno.faltas_bimestre / 40 * 35, 35] | min | round | int }} pts</span></div>
+      <div class="bar-bg"><div class="bar" style="width:{{ [aluno.faltas_bimestre / 40 * 100, 100] | min }}%; background:#E24B4A;"></div></div>
+    </div>
+    <div class="fator">
+      <div class="fator-nome"><span>Necessidade de trabalhar (peso 25%)</span><span>{% if aluno.trabalha == 'Sim' %}25{% else %}0{% endif %} pts</span></div>
+      <div class="bar-bg"><div class="bar" style="width:{% if aluno.trabalha == 'Sim' %}100{% else %}0{% endif %}%; background:#BA7517;"></div></div>
+    </div>
+    <div class="fator">
+      <div class="fator-nome"><span>Baixo rendimento (peso 20%)</span><span>{{ [[0, (5 - aluno.media_notas) / 5 * 20] | max, 20] | min | round | int }} pts</span></div>
+      <div class="bar-bg"><div class="bar" style="width:{{ [[0, (5 - aluno.media_notas) / 5 * 100] | max, 100] | min }}%; background:#534AB7;"></div></div>
+    </div>
+    <div class="fator">
+      <div class="fator-nome"><span>Vulnerabilidade econômica (peso 12%)</span><span>{{ [[0, (3 - aluno.renda_salarios) / 3 * 12] | max, 12] | min | round | int }} pts</span></div>
+      <div class="bar-bg"><div class="bar" style="width:{{ [[0, (3 - aluno.renda_salarios) / 3 * 100] | max, 100] | min }}%; background:#D4537E;"></div></div>
+    </div>
+    <div class="fator">
+      <div class="fator-nome"><span>Reprovações anteriores (peso 8%)</span><span>{{ [aluno.reprovacoes / 4 * 8, 8] | min | round | int }} pts</span></div>
+      <div class="bar-bg"><div class="bar" style="width:{{ [aluno.reprovacoes / 4 * 100, 100] | min }}%; background:#378ADD;"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p style="font-size:14px; font-weight:600; margin-bottom:10px;">Recomendação da IA</p>
+    <div class="rec">
+      {% if aluno.nivel == 'ALTO' %}
+      Intervenção imediata recomendada. Contatar a família o quanto antes, encaminhar para assistência social e verificar possibilidade de bolsa emergencial. Professor orientador deve agendar conversa individual com o aluno.
+      {% elif aluno.nivel == 'MODERADO' %}
+      Acompanhamento próximo recomendado. Conversar com o aluno sobre dificuldades, verificar se há necessidade de apoio pedagógico ou financeiro. Monitorar frequência nas próximas semanas.
+      {% else %}
+      Aluno com baixo risco. Manter acompanhamento regular e reforçar engajamento com atividades extracurriculares e projetos escolares.
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
