@@ -43,7 +43,7 @@ def registrar():
         'nome': nome,
         'tipo': tipo,
         'descricao': descricao,
-        'data': datetime.now().strftime('%d/%m/%Y %H:%M')
+'data': datetime.now(tz=__import__('zoneinfo').ZoneInfo('America/Sao_Paulo')).strftime('%d/%m/%Y %H:%M')
     })
     with open('ocorrencias.json', 'w') as f:
         json.dump(ocorrencias, f)
